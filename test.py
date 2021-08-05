@@ -15,13 +15,16 @@ from networks.vision_transformer import SwinUnet as ViT_seg
 from trainer import trainer_synapse
 from config import get_config
 
+"""
+python test.py --dataset Synapse --cfg configs/swin_tiny_patch4_window7_224_lite.yaml --is_savenii --volume_path 'datasets/data/Synapse' --output_dir 'predictions' --max_epoch 150 --base_lr 0.05 --img_size 224 --batch_size 24
+"""
 parser = argparse.ArgumentParser()
 parser.add_argument('--volume_path', type=str,
-                    default='../data/Synapse/test_vol_h5', help='root dir for validation volume data')  # for acdc volume_path=root_dir
+                    default='datasets/data/Synapse', help='root dir for validation volume data')  # for acdc volume_path=root_dir
 parser.add_argument('--dataset', type=str,
                     default='Synapse', help='experiment_name')
 parser.add_argument('--num_classes', type=int,
-                    default=9, help='output channel of network')
+                    default=3, help='output channel of network')
 parser.add_argument('--list_dir', type=str,
                     default='./lists/lists_Synapse', help='list dir')
 parser.add_argument('--output_dir', type=str, help='output dir')   
@@ -30,8 +33,8 @@ parser.add_argument('--max_epochs', type=int, default=150, help='maximum epoch n
 parser.add_argument('--batch_size', type=int, default=24,
                     help='batch_size per gpu')
 parser.add_argument('--img_size', type=int, default=224, help='input patch size of network input')
-parser.add_argument('--is_savenii', action="store_true", help='whether to save results during inference')
-parser.add_argument('--test_save_dir', type=str, default='../predictions', help='saving prediction as nii!')
+parser.add_argument('--is_savenii', action="store_true", default=True, help='whether to save results during inference')
+parser.add_argument('--test_save_dir', type=str, default='predictions', help='saving prediction as nii!')
 parser.add_argument('--deterministic', type=int,  default=1, help='whether use deterministic training')
 parser.add_argument('--base_lr', type=float,  default=0.01, help='segmentation network learning rate')
 parser.add_argument('--seed', type=int, default=1234, help='random seed')
@@ -59,7 +62,7 @@ parser.add_argument('--throughput', action='store_true', help='Test throughput o
 
 args = parser.parse_args()
 if args.dataset == "Synapse":
-    args.volume_path = os.path.join(args.volume_path, "test_vol_h5")
+    args.volume_path = os.path.join(args.volume_path, "test_npz")
 config = get_config(args)
 
 
@@ -102,8 +105,8 @@ if __name__ == "__main__":
         'Synapse': {
             'Dataset': Synapse_dataset,
             'volume_path': args.volume_path,
-            'list_dir': './lists/lists_Synapse',
-            'num_classes': 9,
+            'list_dir': 'datasets/data/Synapse',
+            'num_classes': 3,
             'z_spacing': 1,
         },
     }
@@ -117,7 +120,7 @@ if __name__ == "__main__":
 
     net = ViT_seg(config, img_size=args.img_size, num_classes=args.num_classes).cuda()
 
-    snapshot = os.path.join(args.output_dir, 'best_model.pth')
+    snapshot = 'best_model.pth'
     if not os.path.exists(snapshot): snapshot = snapshot.replace('best_model', 'epoch_'+str(args.max_epochs-1))
     msg = net.load_state_dict(torch.load(snapshot))
     print("self trained swin unet",msg)

@@ -42,14 +42,17 @@ def trainer_synapse(args, model, snapshot_path):
     ce_loss = CrossEntropyLoss()
     dice_loss = DiceLoss(num_classes)
     optimizer = optim.SGD(model.parameters(), lr=base_lr, momentum=0.9, weight_decay=0.0001)
+    # schedule = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=3, verbose=True)
     writer = SummaryWriter(snapshot_path + '/log')
     iter_num = 0
     max_epoch = args.max_epochs
     max_iterations = args.max_epochs * len(trainloader)  # max_epoch = max_iterations // len(trainloader) + 1
     logging.info("{} iterations per epoch. {} max iterations ".format(len(trainloader), max_iterations))
-    best_performance = 0.0
+    best_loss = 1000
+
     iterator = tqdm(range(max_epoch), ncols=70)
     for epoch_num in iterator:
+        total_loss_dice = 0
         for i_batch, sampled_batch in enumerate(trainloader):
             image_batch, label_batch = sampled_batch['image'], sampled_batch['label']
             image_batch, label_batch = image_batch.cuda(), label_batch.cuda()
@@ -57,6 +60,8 @@ def trainer_synapse(args, model, snapshot_path):
             loss_ce = ce_loss(outputs, label_batch[:].long())
             loss_dice = dice_loss(outputs, label_batch, softmax=True)
             loss = 0.4 * loss_ce + 0.6 * loss_dice
+            total_loss_dice += loss_dice.item()
+            # loss = loss_ce
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -92,6 +97,10 @@ def trainer_synapse(args, model, snapshot_path):
             logging.info("save model to {}".format(save_mode_path))
             iterator.close()
             break
+
+        if total_loss_dice/(len(trainloader)) < best_loss:
+            best_loss = total_loss_dice/(len(trainloader))
+            torch.save(model.state_dict(), 'best_model.pth')
 
     writer.close()
     return "Training Finished!"
